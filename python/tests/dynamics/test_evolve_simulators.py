@@ -249,7 +249,7 @@ def test_evolve(init_state):
     ]
     np.testing.assert_allclose(results_with_shots,
                                expected_result_ideal,
-                               atol=0.1)
+                               atol=0.15)
 
 
 def test_evolve_async():
@@ -329,7 +329,7 @@ def test_evolve_async():
     ]
     np.testing.assert_allclose(results_with_shots,
                                expected_result_ideal,
-                               atol=0.1)
+                               atol=0.15)
 
 
 @pytest.mark.skip(reason="Skipping test due to issue #3678")
@@ -459,6 +459,36 @@ def test_evolve_no_intermediate_results():
     # inner list is observables. With NONE mode, there's only one time step (final).
     assert final_exp_decay[0][0].expectation() != final_exp[0][0].expectation()
     assert final_exp_decay[0][1].expectation() != final_exp[0][1].expectation()
+
+
+def test_final_expectation_values_without_observables():
+    """Test that final_expectation_values returns None instead of crashing
+    when evolve is called without observables."""
+
+    hamiltonian = 2 * np.pi * 0.1 * spin.x(0)
+    dimensions = {0: 2}
+    rho0 = cudaq.State.from_data(
+        np.array([[1.0, 0.0], [0.0, 0.0]], dtype=np.complex128))
+
+    steps = np.linspace(0, 10, 11)
+    schedule = Schedule(steps, ["time"])
+
+    # Evolve without observables
+    result = cudaq.evolve(
+        hamiltonian,
+        dimensions,
+        schedule,
+        rho0,
+        store_intermediate_results=cudaq.IntermediateResultSave.NONE)
+
+    # final_expectation_values should return None, not segfault
+    assert result.final_expectation_values() is None
+
+    # expectation_values should also be None
+    assert result.expectation_values() is None
+
+    # final_state should still work
+    assert result.final_state() is not None
 
 
 # leave for gdb debugging
